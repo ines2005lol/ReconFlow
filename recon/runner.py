@@ -9,6 +9,8 @@ Every scanner goes through run_command(), so the safety rules live in one spot:
 import logging
 import subprocess
 
+from recon import config
+
 logger = logging.getLogger(__name__)
 
 # How much of a failing program's stderr to keep in the error message.
@@ -56,3 +58,20 @@ def run_command(args: list[str], timeout: int) -> subprocess.CompletedProcess[st
         raise ScannerError(f"{program!r} exited with code {result.returncode}: {stderr}")
 
     return result
+
+
+def docker_scanner_command(image: str, scanner_args: list[str]) -> list[str]:
+    """Build the `docker run` argument list that runs a scanner next to Juice Shop.
+
+      --rm                          delete the scanner container when it exits
+      --network container:<name>    share Juice Shop's network: inside it, the lab is
+                                    127.0.0.1:<container port> and nothing else is
+                                    reachable through that loopback
+    Everything after the image name is passed to the scanner itself.
+    """
+    return [
+        "docker", "run", "--rm",
+        "--network", f"container:{config.LAB_CONTAINER}",
+        image,
+        *scanner_args,
+    ]

@@ -1,4 +1,9 @@
-# The tool itself only uses the Python standard library.
-# Nmap, httpx (ProjectDiscovery) and Nuclei are external programs, not pip packages.
+# The scanner pipeline itself only uses the Python standard library.
+# Nmap, httpx (ProjectDiscovery) and Nuclei are external programs run in Docker, not pip packages.
 
+# Web API (interactive docs at http://127.0.0.1:8000/docs)
+fastapi==0.165.0
+uvicorn==0.54.0
+
+# Tests
 pytest==8.4.2

@@ -9,3 +9,5 @@ __pycache__/
 
 # Scan reports: regenerated on every run, may describe your machine
 output/
+
+.claude/ 

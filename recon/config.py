@@ -20,6 +20,9 @@ ALLOWED_TARGETS: frozenset[tuple[str, int]] = frozenset({
 LAB_CONTAINER = "recon-lab-juice-shop-1"
 HOST_TO_CONTAINER_PORT: dict[int, int] = {3001: 3000}
 
+# Scanner images, pinned to exact versions so results are reproducible.
+NMAP_IMAGE = "instrumentisto/nmap:7.98"
+
 # Seconds before a step is killed. Generous enough for a single-port lab,
 # short enough that a hung scanner never blocks the pipeline forever.
 LAB_CHECK_TIMEOUT = 5

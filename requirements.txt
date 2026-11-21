@@ -1,0 +1,4 @@
+# The tool itself only uses the Python standard library.
+# Nmap, httpx (ProjectDiscovery) and Nuclei are external programs, not pip packages.
+
+pytest==8.4.2

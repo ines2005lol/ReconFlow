@@ -1,0 +1,22 @@
+# The lab: OWASP Juice Shop, the intentionally vulnerable target we scan.
+#
+#   docker compose up -d      start the lab in the background
+#   docker compose ps         check the container is running
+#   docker compose logs -f    follow Juice Shop's logs (Ctrl+C to stop following)
+#   docker compose down       stop and remove the container
+#
+# Juice Shop is deliberately vulnerable, so the port is bound to 127.0.0.1 only:
+# reachable from this machine, never from other devices on your network.
+#
+# Juice Shop listens on 3000 inside its container; we publish it on host port 3001
+# because 3000 is used by the media_platform API. Open it at http://127.0.0.1:3001
+
+name: recon-lab
+
+services:
+  juice-shop:
+    # Pinned version: scans stay reproducible instead of changing when "latest" moves.
+    image: bkimminich/juice-shop:v17.3.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"   # host address : host port : container port

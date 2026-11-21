@@ -1,0 +1,11 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local settings (scanner paths etc.) - never commit
+.env
+
+# Scan reports: regenerated on every run, may describe your machine
+output/

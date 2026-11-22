@@ -32,6 +32,23 @@ def test_disallowed_target_is_400_and_never_scans(monkeypatch):
     assert exc_info.value.status_code == 400
 
 
+def test_httpx_scan_returns_results(monkeypatch):
+    fake = [{"url": "http://127.0.0.1:3000", "reachable": True, "title": "OWASP Juice Shop"}]
+    monkeypatch.setattr(api, "run_httpx", lambda target: fake)
+
+    result = api.scan_httpx(api.ScanRequest(target="http://localhost:3001"))
+
+    assert result == {"target": "http://localhost:3001", "scanner": "httpx", "results": fake}
+
+
+def test_httpx_disallowed_target_is_400(monkeypatch):
+    monkeypatch.setattr(api, "run_httpx", lambda target: pytest.fail("must not scan"))
+
+    with pytest.raises(HTTPException) as exc_info:
+        api.scan_httpx(api.ScanRequest(target="http://example.com:3001"))
+    assert exc_info.value.status_code == 400
+
+
 def test_scanner_failure_is_502(monkeypatch):
     def broken(target):
         raise ScannerError("'docker' was not found")

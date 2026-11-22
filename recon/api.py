@@ -28,8 +28,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="AI-Assisted Recon & Vulnerability Triage Tool",
-    description="Scans the local OWASP Juice Shop lab only. Targets outside the allowlist are rejected.",
+    title="ReconFlow",
+    description=(
+        "Automated web reconnaissance pipeline integrating Nmap, httpx and Nuclei into a "
+        "unified scan. Scans the local OWASP Juice Shop lab only; targets outside the "
+        "allowlist are rejected."
+    ),
     version="0.1.0",
 )
 
@@ -46,7 +50,7 @@ def root() -> RedirectResponse:
     return RedirectResponse(url="/docs")
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 def health() -> dict:
     """Status of the API and of the lab.
 
@@ -85,7 +89,7 @@ def _scanner_failed(name: str, exc: ScannerError) -> HTTPException:
 # Plain `def` (not `async def`) on purpose: scans block for seconds while waiting on
 # a subprocess. FastAPI runs plain-def endpoints in a worker thread, so one running
 # scan doesn't freeze the whole server.
-@app.post("/scans")
+@app.post("/scans", tags=["Reconnaissance"])
 def scan_all(request: ScanRequest) -> dict:
     """Full pipeline: Nmap -> httpx -> Nuclei, combined into one report (about 2 minutes).
 
@@ -101,7 +105,7 @@ def scan_all(request: ScanRequest) -> dict:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.post("/scans/nmap")
+@app.post("/scans/nmap", tags=["Reconnaissance"])
 def scan_nmap(request: ScanRequest) -> dict:
     """Run an Nmap service scan against the lab and return the parsed results."""
     target = _ready_target(request.target)
@@ -112,7 +116,7 @@ def scan_nmap(request: ScanRequest) -> dict:
     return {"target": target.url, "scanner": "nmap", "hosts": hosts}
 
 
-@app.post("/scans/httpx")
+@app.post("/scans/httpx", tags=["Reconnaissance"])
 def scan_httpx(request: ScanRequest) -> dict:
     """Probe the lab with ProjectDiscovery httpx: reachability, status, title, technologies."""
     target = _ready_target(request.target)
@@ -123,7 +127,7 @@ def scan_httpx(request: ScanRequest) -> dict:
     return {"target": target.url, "scanner": "httpx", "results": results}
 
 
-@app.post("/scans/nuclei")
+@app.post("/scans/nuclei", tags=["Reconnaissance"])
 def scan_nuclei(request: ScanRequest) -> dict:
     """Run a safe, web-only Nuclei scan of the lab (takes about 2 minutes)."""
     target = _ready_target(request.target)

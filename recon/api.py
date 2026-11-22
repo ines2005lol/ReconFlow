@@ -12,8 +12,11 @@ other machines. There is no authentication because it never leaves localhost.
 import logging
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from recon.lab import LabUnreachableError
+from recon.pipeline import run_pipeline
 from recon.runner import ScannerError
 from recon.scanners.httpx_probe import run_httpx
 from recon.scanners.nmap import run_nmap
@@ -33,6 +36,13 @@ app = FastAPI(
 class ScanRequest(BaseModel):
     # The example is what Swagger pre-fills in the "Try it out" box.
     target: str = Field(examples=["http://127.0.0.1:3001"], description="Allowlisted lab URL")
+
+
+# include_in_schema=False keeps this helper route out of the Swagger page itself.
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Opening http://127.0.0.1:8000/ sends the browser to the Swagger UI."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
@@ -58,6 +68,22 @@ def _scanner_failed(name: str, exc: ScannerError) -> HTTPException:
 # Plain `def` (not `async def`) on purpose: scans block for seconds while waiting on
 # a subprocess. FastAPI runs plain-def endpoints in a worker thread, so one running
 # scan doesn't freeze the whole server.
+@app.post("/scans")
+def scan_all(request: ScanRequest) -> dict:
+    """Full pipeline: Nmap -> httpx -> Nuclei, combined into one report (about 2 minutes).
+
+    A failing scanner doesn't fail the request: its section has status "error" and the
+    report status is "partial".
+    """
+    try:
+        return run_pipeline(request.target)
+    except TargetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LabUnreachableError as exc:
+        # 503: the service we need (the lab) is currently unavailable.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @app.post("/scans/nmap")
 def scan_nmap(request: ScanRequest) -> dict:
     """Run an Nmap service scan against the lab and return the parsed results."""

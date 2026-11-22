@@ -49,6 +49,16 @@ def test_httpx_disallowed_target_is_400(monkeypatch):
     assert exc_info.value.status_code == 400
 
 
+def test_nuclei_scan_returns_count_and_findings(monkeypatch):
+    fake = [{"template_id": "prometheus-metrics", "severity": "medium"}]
+    monkeypatch.setattr(api, "run_nuclei", lambda target: fake)
+
+    result = api.scan_nuclei(api.ScanRequest(target="http://127.0.0.1:3001"))
+
+    assert result["count"] == 1
+    assert result["findings"] == fake
+
+
 def test_scanner_failure_is_502(monkeypatch):
     def broken(target):
         raise ScannerError("'docker' was not found")

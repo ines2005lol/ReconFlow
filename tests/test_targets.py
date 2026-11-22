@@ -19,6 +19,19 @@ def test_scanner_url_uses_container_port_and_ipv4():
     assert target.scanner_url == "http://127.0.0.1:3000"
 
 
+@pytest.mark.parametrize("scanner_url, expected", [
+    ("http://127.0.0.1:3000", "http://localhost:3001"),
+    ("http://127.0.0.1:3000/", "http://localhost:3001/"),
+    ("http://127.0.0.1:3000/metrics", "http://localhost:3001/metrics"),
+    ("http://127.0.0.1:3000/?q=1", "http://localhost:3001/?q=1"),
+    ("http://127.0.0.1:30001/x", "http://127.0.0.1:30001/x"),  # different port: untouched
+    ("https://example.com/ref", "https://example.com/ref"),  # not a lab URL: untouched
+    (None, None),
+])
+def test_to_host_url_translates_only_lab_urls(scanner_url, expected):
+    assert validate_target("http://localhost:3001").to_host_url(scanner_url) == expected
+
+
 @pytest.mark.parametrize("raw", [
     # external hosts, domains and other private IPs
     "http://8.8.8.8:3001",

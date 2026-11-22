@@ -42,6 +42,20 @@ class Target:
         """The URL as seen from a scanner container, e.g. http://127.0.0.1:3000."""
         return f"http://{self.scanner_host}:{self.scanner_port}"
 
+    def to_host_url(self, url: str | None) -> str | None:
+        """Translate a URL reported by a scanner back to the one you can open.
+
+        http://127.0.0.1:3000/metrics -> http://127.0.0.1:3001/metrics
+        Anything that doesn't start with the scanner URL is returned unchanged.
+        """
+        if not url or not url.startswith(self.scanner_url):
+            return url
+        rest = url[len(self.scanner_url):]
+        # Boundary check: "http://127.0.0.1:30001" also starts with "...:3000".
+        if rest and rest[0] not in "/?#":
+            return url
+        return self.url + rest
+
 
 def validate_target(raw: str) -> Target:
     """Return a Target if `raw` is an allowlisted lab URL, otherwise raise TargetError.

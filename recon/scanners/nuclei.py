@@ -61,7 +61,10 @@ def run_nuclei(target: Target) -> list[dict]:
                 f"{config.NUCLEI_IMAGE} -update-templates"
             ) from exc
         raise
-    return parse_nuclei_jsonl(result.stdout)
+    findings = parse_nuclei_jsonl(result.stdout)
+    for f in findings:  # report the URL you can open (3001), not the in-lab one (3000)
+        f["matched_at"] = target.to_host_url(f["matched_at"])
+    return findings
 
 
 def parse_nuclei_jsonl(text: str) -> list[dict]:

@@ -41,7 +41,10 @@ def run_httpx(target: Target) -> list[dict]:
     args = docker_scanner_command(config.HTTPX_IMAGE, build_httpx_args(target))
     logger.info("Running httpx against %s", target.url)
     result = run_command(args, timeout=config.HTTPX_TIMEOUT)
-    return parse_httpx_jsonl(result.stdout)
+    results = parse_httpx_jsonl(result.stdout)
+    for r in results:  # report the URL you can open (3001), not the in-lab one (3000)
+        r["url"] = target.to_host_url(r["url"])
+    return results
 
 
 def parse_httpx_jsonl(text: str) -> list[dict]:

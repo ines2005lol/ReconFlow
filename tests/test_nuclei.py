@@ -87,6 +87,16 @@ def test_safe_flags_are_always_present():
     assert "-disable-update-check" in args
 
 
+def test_run_nuclei_reports_host_urls(monkeypatch):
+    fixture = (FIXTURES / "nuclei_juice_shop.jsonl").read_text(encoding="utf-8")
+    monkeypatch.setattr(nuclei, "run_command", lambda args, timeout: type("R", (), {"stdout": fixture})())
+
+    findings = nuclei.run_nuclei(validate_target("http://127.0.0.1:3001"))
+
+    assert findings[0]["matched_at"] == "http://127.0.0.1:3001/metrics"
+    assert all(":3000" not in f["matched_at"] for f in findings)
+
+
 def test_missing_templates_gives_setup_hint(monkeypatch):
     def fail(args, timeout):
         raise ScannerError("'docker' exited with code 1: [FTL] Could not run nuclei: no templates provided for scan")

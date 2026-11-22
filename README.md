@@ -5,8 +5,8 @@ A Python reconnaissance pipeline that scans a local, intentionally vulnerable la
 output into structured JSON, exposed through a FastAPI REST API.
 
 > **Status: work in progress (Day 1 of a 3-day MVP).**
-> Nmap, httpx and Nuclei scanning, target allowlisting and the API are working and tested.
-> The combined pipeline, PostgreSQL storage and Ollama-based triage are next.
+> The full pipeline (Nmap → httpx → Nuclei → JSON report), target allowlisting and the
+> API are working and tested. PostgreSQL storage and Ollama-based triage are next.
 
 > ⚠️ **Authorized use only.** This tool is hard-restricted to a lab running on your own
 > machine. It rejects every other host, and it must never be pointed at systems you
@@ -114,7 +114,18 @@ docker run --rm -v recon-nuclei-templates:/root/nuclei-templates projectdiscover
 .\.venv\Scripts\python.exe -m pytest -v
 ```
 
-### 4. Start the API
+### 4. Run the full pipeline from the command line
+
+```powershell
+.\.venv\Scripts\python.exe -m recon
+```
+
+This validates the target, checks the lab is up, runs Nmap → httpx → Nuclei (about 2
+minutes) and saves a JSON report to `output\report_<time>.json`. Add `-v` to log the
+exact commands, or `--output my_report.json` to choose the file.
+Exit codes: `0` complete, `1` partial (a scanner failed), `2` target rejected, `3` lab down.
+
+### 5. Start the API
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn recon.api:app --host 127.0.0.1 --port 8000
@@ -134,12 +145,15 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/scans/nmap -ContentTyp
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | API process is up |
-| `POST` | `/scans/nmap` | Nmap service scan of the lab. Body: `{"target": "http://127.0.0.1:3001"}` |
+| `POST` | `/scans` | **Full pipeline** (about 2 min): Nmap → httpx → Nuclei in one report. Body: `{"target": "http://127.0.0.1:3001"}` |
+| `POST` | `/scans/nmap` | Nmap service scan only. Same body |
 | `POST` | `/scans/httpx` | httpx probe: reachable, status code, title, detected technologies. Same body |
 | `POST` | `/scans/nuclei` | Safe Nuclei scan (about 2 min): findings with severity, URL, description, references. Same body |
 
 Status codes: `200` scan finished, `400` target not in the allowlist (no scan is run),
-`422` malformed request body, `502` the scanner failed (for example Docker not running).
+`422` malformed request body, `502` the scanner failed (for example Docker not running),
+`503` the lab is not reachable (`/scans` only). On `/scans`, a single failing scanner does
+not fail the request: its section has `"status": "error"` and the report is `"partial"`.
 
 Example response:
 
@@ -196,6 +210,9 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 │  ├─ config.py              allowlist, port mapping, images, timeouts
 │  ├─ targets.py             target validation
 │  ├─ runner.py              safe subprocess helper + docker run builder
+│  ├─ lab.py                 checks the lab answers before scanning
+│  ├─ pipeline.py            validate → lab check → Nmap → httpx → Nuclei → report
+│  ├─ __main__.py            command line: python -m recon
 │  ├─ api.py                 FastAPI app
 │  └─ scanners/
 │     ├─ nmap.py             run + parse Nmap XML
@@ -214,7 +231,7 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 - [x] FastAPI endpoint with interactive docs
 - [x] ProjectDiscovery httpx: status, title, technologies
 - [x] Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
-- [ ] One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
+- [x] One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
 - [ ] Store and deduplicate findings in PostgreSQL
 - [ ] Local LLM (Ollama) summaries and fix suggestions per finding
 - [ ] Risk score (severity × exposure)

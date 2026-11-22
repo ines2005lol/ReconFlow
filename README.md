@@ -1,6 +1,6 @@
-# AI-Assisted Recon & Vulnerability Triage Tool
+# ReconFlow
 
-A Python reconnaissance pipeline that scans a local, intentionally vulnerable lab
+**ReconFlow** is a Python reconnaissance pipeline that scans a local, intentionally vulnerable lab
 ([OWASP Juice Shop](https://owasp.org/www-project-juice-shop/)) and turns raw scanner
 output into structured JSON, exposed through a FastAPI REST API.
 

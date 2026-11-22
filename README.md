@@ -5,8 +5,8 @@ A Python reconnaissance pipeline that scans a local, intentionally vulnerable la
 output into structured JSON, exposed through a FastAPI REST API.
 
 > **Status: work in progress (Day 1 of a 3-day MVP).**
-> Nmap scanning, target allowlisting and the API are working and tested.
-> httpx, Nuclei, the combined pipeline, PostgreSQL storage and Ollama-based triage are next.
+> Nmap and httpx scanning, target allowlisting and the API are working and tested.
+> Nuclei, the combined pipeline, PostgreSQL storage and Ollama-based triage are next.
 
 > ⚠️ **Authorized use only.** This tool is hard-restricted to a lab running on your own
 > machine. It rejects every other host, and it must never be pointed at systems you
@@ -52,7 +52,7 @@ requirement.
 |---|---|
 | Language | Python 3.13 (standard library for subprocess, XML/JSON parsing, logging) |
 | API | FastAPI + Uvicorn |
-| Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx and Nuclei *(in progress)* |
+| Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx v1.12.0, Nuclei *(in progress)* |
 | Lab | OWASP Juice Shop v17.3.0 in Docker Compose |
 | Tests | pytest, using saved real scanner output (no live scans needed) |
 | Planned | PostgreSQL (findings storage), Ollama (local LLM summaries and fix suggestions) |
@@ -126,6 +126,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/scans/nmap -ContentTyp
 |---|---|---|
 | `GET` | `/health` | API process is up |
 | `POST` | `/scans/nmap` | Nmap service scan of the lab. Body: `{"target": "http://127.0.0.1:3001"}` |
+| `POST` | `/scans/httpx` | httpx probe: reachable, status code, title, detected technologies. Same body |
 
 Status codes: `200` scan finished, `400` target not in the allowlist (no scan is run),
 `422` malformed request body, `502` the scanner failed (for example Docker not running).
@@ -187,7 +188,8 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 │  ├─ runner.py              safe subprocess helper + docker run builder
 │  ├─ api.py                 FastAPI app
 │  └─ scanners/
-│     └─ nmap.py             run + parse Nmap XML
+│     ├─ nmap.py             run + parse Nmap XML
+│     └─ httpx_probe.py      run + parse httpx JSONL
 └─ tests/
    ├─ fixtures/              real scanner output used by the tests
    └─ test_*.py
@@ -199,7 +201,7 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 - [x] Target allowlist and safe subprocess runner
 - [x] Nmap scan and XML parsing
 - [x] FastAPI endpoint with interactive docs
-- [ ] ProjectDiscovery httpx: status, title, technologies
+- [x] ProjectDiscovery httpx: status, title, technologies
 - [ ] Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
 - [ ] One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
 - [ ] Store and deduplicate findings in PostgreSQL

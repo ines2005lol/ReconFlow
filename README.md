@@ -5,8 +5,8 @@ A Python reconnaissance pipeline that scans a local, intentionally vulnerable la
 output into structured JSON, exposed through a FastAPI REST API.
 
 > **Status: work in progress (Day 1 of a 3-day MVP).**
-> Nmap and httpx scanning, target allowlisting and the API are working and tested.
-> Nuclei, the combined pipeline, PostgreSQL storage and Ollama-based triage are next.
+> Nmap, httpx and Nuclei scanning, target allowlisting and the API are working and tested.
+> The combined pipeline, PostgreSQL storage and Ollama-based triage are next.
 
 > ⚠️ **Authorized use only.** This tool is hard-restricted to a lab running on your own
 > machine. It rejects every other host, and it must never be pointed at systems you
@@ -52,7 +52,7 @@ requirement.
 |---|---|
 | Language | Python 3.13 (standard library for subprocess, XML/JSON parsing, logging) |
 | API | FastAPI + Uvicorn |
-| Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx v1.12.0, Nuclei *(in progress)* |
+| Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx v1.12.0 and Nuclei v3.11.1 |
 | Lab | OWASP Juice Shop v17.3.0 in Docker Compose |
 | Tests | pytest, using saved real scanner output (no live scans needed) |
 | Planned | PostgreSQL (findings storage), Ollama (local LLM summaries and fix suggestions) |
@@ -70,6 +70,9 @@ requirement.
 - **Localhost-only exposure**: Juice Shop is published on `127.0.0.1:3001` and the API on
   `127.0.0.1:8000`, so neither is reachable from other devices on the network.
 - **Polite scanning**: Nmap scans a single port with a TCP connect scan (`-sT -Pn -sV -p 3000`).
+- **Safe Nuclei profile** ([recon/scanners/nuclei.py](recon/scanners/nuclei.py)): web templates
+  only (`-type http`), `dos`/`intrusive`/`fuzz`/`bruteforce` tags excluded, interactsh
+  disabled so the lab never calls out to public OAST servers, templates mounted read-only.
 - **Pinned versions** for every image and Python dependency.
 
 ## Getting started (Windows / PowerShell)
@@ -99,6 +102,12 @@ docker compose up -d
 
 Wait 10–20 seconds, then open http://127.0.0.1:3001. You should see the Juice Shop store.
 
+Download Nuclei's templates once (about 14,500 files, into a Docker volume):
+
+```powershell
+docker run --rm -v recon-nuclei-templates:/root/nuclei-templates projectdiscovery/nuclei:v3.11.1 -update-templates
+```
+
 ### 3. Run the tests
 
 ```powershell
@@ -127,6 +136,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/scans/nmap -ContentTyp
 | `GET` | `/health` | API process is up |
 | `POST` | `/scans/nmap` | Nmap service scan of the lab. Body: `{"target": "http://127.0.0.1:3001"}` |
 | `POST` | `/scans/httpx` | httpx probe: reachable, status code, title, detected technologies. Same body |
+| `POST` | `/scans/nuclei` | Safe Nuclei scan (about 2 min): findings with severity, URL, description, references. Same body |
 
 Status codes: `200` scan finished, `400` target not in the allowlist (no scan is run),
 `422` malformed request body, `502` the scanner failed (for example Docker not running).
@@ -189,7 +199,8 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 │  ├─ api.py                 FastAPI app
 │  └─ scanners/
 │     ├─ nmap.py             run + parse Nmap XML
-│     └─ httpx_probe.py      run + parse httpx JSONL
+│     ├─ httpx_probe.py      run + parse httpx JSONL
+│     └─ nuclei.py           run + parse Nuclei JSONL
 └─ tests/
    ├─ fixtures/              real scanner output used by the tests
    └─ test_*.py
@@ -202,7 +213,7 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 - [x] Nmap scan and XML parsing
 - [x] FastAPI endpoint with interactive docs
 - [x] ProjectDiscovery httpx: status, title, technologies
-- [ ] Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
+- [x] Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
 - [ ] One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
 - [ ] Store and deduplicate findings in PostgreSQL
 - [ ] Local LLM (Ollama) summaries and fix suggestions per finding

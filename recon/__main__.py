@@ -15,11 +15,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from recon.config import DEFAULT_TARGET
 from recon.lab import LabUnreachableError
 from recon.pipeline import run_pipeline
 from recon.targets import TargetError
-
-DEFAULT_TARGET = "http://127.0.0.1:3001"
 
 
 def main(argv: list[str] | None = None) -> int:

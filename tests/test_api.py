@@ -1,15 +1,51 @@
-"""API tests call the endpoint functions directly and replace run_nmap with a fake,
-so no server and no scan are needed."""
+"""API tests call the endpoint functions directly and replace the scanners and the
+lab check with fakes, so no server, no lab and no scan are needed."""
 
 import pytest
 from fastapi import HTTPException
 
 from recon import api
+from recon.lab import LabUnreachableError
 from recon.runner import ScannerError
 
 
-def test_health():
-    assert api.health() == {"status": "ok"}
+@pytest.fixture(autouse=True)
+def lab_is_up(monkeypatch):
+    monkeypatch.setattr(api, "check_lab", lambda target: None)
+
+
+def lab_down(monkeypatch):
+    def down(target):
+        raise LabUnreachableError("Lab at http://127.0.0.1:3001 is not reachable")
+
+    monkeypatch.setattr(api, "check_lab", down)
+
+
+def test_health_lab_up():
+    assert api.health() == {"api": "ok", "lab": {"status": "ok", "detail": None}}
+
+
+def test_health_lab_down(monkeypatch):
+    lab_down(monkeypatch)
+    result = api.health()
+
+    assert result["api"] == "ok"
+    assert result["lab"]["status"] == "unreachable"
+    assert "not reachable" in result["lab"]["detail"]
+
+
+@pytest.mark.parametrize("endpoint, scanner", [
+    ("scan_nmap", "run_nmap"),
+    ("scan_httpx", "run_httpx"),
+    ("scan_nuclei", "run_nuclei"),
+])
+def test_single_scans_return_503_and_never_scan_when_lab_is_down(monkeypatch, endpoint, scanner):
+    lab_down(monkeypatch)
+    monkeypatch.setattr(api, scanner, lambda target: pytest.fail("scanner must not run"))
+
+    with pytest.raises(HTTPException) as exc_info:
+        getattr(api, endpoint)(api.ScanRequest(target="http://127.0.0.1:3001"))
+    assert exc_info.value.status_code == 503
 
 
 def test_root_redirects_to_docs():

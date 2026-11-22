@@ -11,6 +11,9 @@ ALLOWED_TARGETS: frozenset[tuple[str, int]] = frozenset({
     ("localhost", 3001),
 })
 
+# Used by the command line when no --target is given, and by the API's /health check.
+DEFAULT_TARGET = "http://127.0.0.1:3001"
+
 # The scanners run in their own containers attached to the Juice Shop container's
 # network (docker run --network container:<name>). Inside that shared network,
 # Juice Shop is on its *container* port, not the host port we publish:

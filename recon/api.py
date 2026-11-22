@@ -15,7 +15,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from recon.lab import LabUnreachableError
+from recon import config
+from recon.lab import LabUnreachableError, check_lab
 from recon.pipeline import run_pipeline
 from recon.runner import ScannerError
 from recon.scanners.httpx_probe import run_httpx
@@ -47,16 +48,32 @@ def root() -> RedirectResponse:
 
 @app.get("/health")
 def health() -> dict:
-    """Is the API process up? (Does not check the lab.)"""
-    return {"status": "ok"}
+    """Status of the API and of the lab.
 
-
-def _validated(raw_target: str) -> Target:
+    Always HTTP 200 while the API runs; the body says whether the lab answers, so a
+    green /health no longer hides a stopped Juice Shop.
+    """
     try:
-        return validate_target(raw_target)
+        check_lab(validate_target(config.DEFAULT_TARGET))
+        lab = {"status": "ok", "detail": None}
+    except LabUnreachableError as exc:
+        lab = {"status": "unreachable", "detail": str(exc)}
+    return {"api": "ok", "lab": lab}
+
+
+def _ready_target(raw_target: str) -> Target:
+    """Validate the target and make sure the lab answers, before any scanner starts."""
+    try:
+        target = validate_target(raw_target)
     except TargetError as exc:
         # 400: the client asked for something we refuse to do.
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        check_lab(target)
+    except LabUnreachableError as exc:
+        # 503: the service we need (the lab) is currently unavailable.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return target
 
 
 def _scanner_failed(name: str, exc: ScannerError) -> HTTPException:
@@ -87,7 +104,7 @@ def scan_all(request: ScanRequest) -> dict:
 @app.post("/scans/nmap")
 def scan_nmap(request: ScanRequest) -> dict:
     """Run an Nmap service scan against the lab and return the parsed results."""
-    target = _validated(request.target)
+    target = _ready_target(request.target)
     try:
         hosts = run_nmap(target)
     except ScannerError as exc:
@@ -98,7 +115,7 @@ def scan_nmap(request: ScanRequest) -> dict:
 @app.post("/scans/httpx")
 def scan_httpx(request: ScanRequest) -> dict:
     """Probe the lab with ProjectDiscovery httpx: reachability, status, title, technologies."""
-    target = _validated(request.target)
+    target = _ready_target(request.target)
     try:
         results = run_httpx(target)
     except ScannerError as exc:
@@ -109,7 +126,7 @@ def scan_httpx(request: ScanRequest) -> dict:
 @app.post("/scans/nuclei")
 def scan_nuclei(request: ScanRequest) -> dict:
     """Run a safe, web-only Nuclei scan of the lab (takes about 2 minutes)."""
-    target = _validated(request.target)
+    target = _ready_target(request.target)
     try:
         findings = run_nuclei(target)
     except ScannerError as exc:

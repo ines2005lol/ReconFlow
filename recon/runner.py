@@ -60,18 +60,22 @@ def run_command(args: list[str], timeout: int) -> subprocess.CompletedProcess[st
     return result
 
 
-def docker_scanner_command(image: str, scanner_args: list[str]) -> list[str]:
+def docker_scanner_command(
+    image: str, scanner_args: list[str], docker_args: list[str] | None = None
+) -> list[str]:
     """Build the `docker run` argument list that runs a scanner next to Juice Shop.
 
       --rm                          delete the scanner container when it exits
       --network container:<name>    share Juice Shop's network: inside it, the lab is
                                     127.0.0.1:<container port> and nothing else is
                                     reachable through that loopback
+      docker_args                   extra options for docker itself (e.g. a volume)
     Everything after the image name is passed to the scanner itself.
     """
     return [
         "docker", "run", "--rm",
         "--network", f"container:{config.LAB_CONTAINER}",
+        *(docker_args or []),
         image,
         *scanner_args,
     ]

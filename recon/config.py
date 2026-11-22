@@ -23,6 +23,15 @@ HOST_TO_CONTAINER_PORT: dict[int, int] = {3001: 3000}
 # Scanner images, pinned to exact versions so results are reproducible.
 NMAP_IMAGE = "instrumentisto/nmap:7.98"
 HTTPX_IMAGE = "projectdiscovery/httpx:v1.12.0"
+NUCLEI_IMAGE = "projectdiscovery/nuclei:v3.11.1"
+
+# Docker volume holding Nuclei's templates, downloaded once (see README) and mounted
+# read-only into every scan.
+NUCLEI_TEMPLATES_VOLUME = "recon-nuclei-templates"
+
+# Template tags Nuclei must never run against the lab: denial of service, intrusive or
+# state-changing checks, fuzzing and password guessing.
+NUCLEI_EXCLUDED_TAGS = ("dos", "intrusive", "fuzz", "bruteforce")
 
 # Seconds before a step is killed. Generous enough for a single-port lab,
 # short enough that a hung scanner never blocks the pipeline forever.

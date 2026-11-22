@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from recon.runner import ScannerError
 from recon.scanners.httpx_probe import run_httpx
 from recon.scanners.nmap import run_nmap
+from recon.scanners.nuclei import run_nuclei
 from recon.targets import Target, TargetError, validate_target
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -77,3 +78,14 @@ def scan_httpx(request: ScanRequest) -> dict:
     except ScannerError as exc:
         raise _scanner_failed("httpx", exc) from exc
     return {"target": target.url, "scanner": "httpx", "results": results}
+
+
+@app.post("/scans/nuclei")
+def scan_nuclei(request: ScanRequest) -> dict:
+    """Run a safe, web-only Nuclei scan of the lab (takes about 2 minutes)."""
+    target = _validated(request.target)
+    try:
+        findings = run_nuclei(target)
+    except ScannerError as exc:
+        raise _scanner_failed("Nuclei", exc) from exc
+    return {"target": target.url, "scanner": "nuclei", "count": len(findings), "findings": findings}

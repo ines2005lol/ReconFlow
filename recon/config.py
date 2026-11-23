@@ -42,3 +42,9 @@ LAB_CHECK_TIMEOUT = 5
 NMAP_TIMEOUT = 300
 HTTPX_TIMEOUT = 120
 NUCLEI_TIMEOUT = 900
+
+# Local LLM used to triage Nuclei findings (python -m recon.triage).
+# Hard-coded to this machine on purpose: findings must never be sent to a remote API.
+OLLAMA_URL = "http://127.0.0.1:11434"
+OLLAMA_MODEL = "llama3.2:3b"
+OLLAMA_TIMEOUT = 120

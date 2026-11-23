@@ -51,6 +51,7 @@ requirement.
 | Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx v1.12.0 and Nuclei v3.11.1 |
 | Lab | OWASP Juice Shop v17.3.0 in Docker Compose |
 | Tests | pytest, using saved real scanner output (no live scans needed) |
+| LLM triage (experimental) | Ollama on 127.0.0.1 with `llama3.2:3b`, JSON structured outputs |
 
 ## Security design
 
@@ -184,6 +185,45 @@ but matched no signature, so `"ppp"` is only the default name for port 3000. The
 flags this instead of presenting a guess as a fact. Identifying the web stack is the job
 of the httpx step.
 
+## Experimental: LLM triage of findings
+
+`python -m recon.triage` sends each Nuclei finding of a report to a **local** LLM
+(Ollama) and adds a `triage` object to it: a verdict (`likely_true_positive`,
+`likely_false_positive` or `needs_review`), a confidence level, an explanation, the risk
+in context and a remediation.
+
+```powershell
+ollama pull llama3.2:3b
+.\.venv\Scripts\python.exe -m recon.triage output\report_<time>.json
+```
+
+The triaged report is saved next to the original as `<report>_triaged.json`.
+
+Design choices:
+
+- **Nothing leaves the machine**: the Ollama URL is hard-coded to `127.0.0.1` in
+  [recon/config.py](recon/config.py), like the scan target allowlist.
+- **Structured output**: the model must answer with JSON matching a schema, and every
+  answer is validated. An invalid answer becomes `needs_review` instead of being trusted.
+- **Findings are treated as untrusted data**: scanner output can contain text from the
+  target (titles, extracted values), so the prompt tells the model never to follow
+  instructions found inside it.
+- **Advisory only**: the verdict helps prioritise; a human still decides.
+
+What I observed on the Juice Shop report (19 findings):
+
+| Prompt | Verdicts from `llama3.2:3b` |
+|---|---|
+| First version, no definitions | 19 × `likely_false_positive`, including the exposed `/metrics` page |
+| With precise definitions of true/false positive | 19 × `likely_true_positive` |
+
+The second result is the correct one for this lab: every condition really exists. But
+the swing shows that a small model follows the **wording of the prompt** more than the
+evidence: it confused "false positive" with "low severity". The explanations and
+remediations were useful in both runs. Reducing false positives reliably would need the
+response evidence in the prompt, a larger model, retrieval of reference material (RAG,
+for example OWASP cheat sheets) and an evaluation against hand-labelled findings.
+
 ## Watching the lab's logs
 
 Juice Shop writes every HTTP request to an access log, mounted into `./lab-logs`:
@@ -209,6 +249,7 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 │  ├─ pipeline.py            validate → lab check → Nmap → httpx → Nuclei → report
 │  ├─ __main__.py            command line: python -m recon
 │  ├─ api.py                 FastAPI app
+│  ├─ triage.py              experimental LLM triage: python -m recon.triage
 │  └─ scanners/
 │     ├─ nmap.py             run + parse Nmap XML
 │     ├─ httpx_probe.py      run + parse httpx JSONL
@@ -227,6 +268,7 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
 - ProjectDiscovery httpx: status, title, technologies
 - Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
 - One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
+- Experimental local LLM triage (Ollama): verdict, explanation and remediation per finding
 
 ## Stopping the lab
 

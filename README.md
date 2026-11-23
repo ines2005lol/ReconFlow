@@ -4,10 +4,6 @@
 ([OWASP Juice Shop](https://owasp.org/www-project-juice-shop/)) and turns raw scanner
 output into structured JSON, exposed through a FastAPI REST API.
 
-> **Status: work in progress (Day 1 of a 3-day MVP).**
-> The full pipeline (Nmap → httpx → Nuclei → JSON report), target allowlisting and the
-> API are working and tested. PostgreSQL storage and Ollama-based triage are next.
-
 > ⚠️ **Authorized use only.** This tool is hard-restricted to a lab running on your own
 > machine. It rejects every other host, and it must never be pointed at systems you
 > do not own or have written permission to test.
@@ -55,7 +51,6 @@ requirement.
 | Scanners | Nmap 7.98 (`instrumentisto/nmap`), ProjectDiscovery httpx v1.12.0 and Nuclei v3.11.1 |
 | Lab | OWASP Juice Shop v17.3.0 in Docker Compose |
 | Tests | pytest, using saved real scanner output (no live scans needed) |
-| Planned | PostgreSQL (findings storage), Ollama (local LLM summaries and fix suggestions) |
 
 ## Security design
 
@@ -223,18 +218,15 @@ its well-known `GET /nice ports,/Trinity.txt.bak` probe.
    └─ test_*.py
 ```
 
-## Roadmap
+## Features
 
-- [x] Dockerized Juice Shop lab, localhost only
-- [x] Target allowlist and safe subprocess runner
-- [x] Nmap scan and XML parsing
-- [x] FastAPI endpoint with interactive docs
-- [x] ProjectDiscovery httpx: status, title, technologies
-- [x] Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
-- [x] One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
-- [ ] Store and deduplicate findings in PostgreSQL
-- [ ] Local LLM (Ollama) summaries and fix suggestions per finding
-- [ ] Risk score (severity × exposure)
+- Dockerized Juice Shop lab, localhost only
+- Target allowlist and safe subprocess runner
+- Nmap scan and XML parsing
+- FastAPI endpoint with interactive docs
+- ProjectDiscovery httpx: status, title, technologies
+- Nuclei: template ID, name, severity, matched URL, references (no intrusive/DoS templates)
+- One command for the full pipeline: Nmap → httpx → Nuclei → JSON report
 
 ## Stopping the lab
 
